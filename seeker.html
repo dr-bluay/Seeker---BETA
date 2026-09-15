@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GH Email Extractor</title>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{
+            font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,sans-serif;
+            background:#0d1117;color:#c9d1d9;
+            min-height:100vh;display:flex;justify-content:center;padding:16px;
+            -webkit-font-smoothing:antialiased
+        }
+        .wrap{max-width:640px;width:100%;padding:20px 0 40px}
+        h1{font-size:22px;font-weight:700;color:#f0f6fc;letter-spacing:-0.3px}
+        .sub{font-size:13px;color:#8b949e;margin:4px 0 20px;line-height:1.5}
+        .card{
+            background:#161b22;border:1px solid #30363d;border-radius:10px;
+            padding:20px;margin-bottom:14px
+        }
+        .card-title{
+            font-size:12px;font-weight:600;color:#8b949e;text-transform:uppercase;
+            letter-spacing:.4px;margin-bottom:12px
+        }
+        .inp-row{display:flex;gap:8px}
+        .inp-row input{
+            flex:1;padding:10px 12px;font-size:15px;
+            background:#0d1117;border:1px solid #30363d;border-radius:8px;
+            color:#c9d1d9;outline:none;transition:border .2s;min-width:0
+        }
+        .inp-row input:focus{border-color:#58a6ff}
+        .inp-row input::placeholder{color:#484f58}
+        .inp-row button{
+            padding:10px 18px;font-size:14px;font-weight:600;
+            background:#238636;border:none;border-radius:8px;color:#fff;
+            cursor:pointer;transition:background .15s;white-space:nowrap;flex-shrink:0
+        }
+        .inp-row button:hover{background:#2ea043}
+        .inp-row button:disabled{background:#1a5a2a;opacity:.5;cursor:not-allowed}
+        .token-row{margin-top:10px;display:flex;gap:8px;align-items:center}
+        .token-row input{
+            flex:1;padding:8px 10px;font-size:13px;font-family:monospace;
+            background:#0d1117;border:1px solid #30363d;border-radius:6px;
+            color:#c9d1d9;outline:none;transition:border .2s
+        }
+        .token-row input:focus{border-color:#d29922}
+        .token-row label{font-size:11px;color:#8b949e;white-space:nowrap}
+        .status-line{font-size:13px;color:#8b949e;min-height:20px;margin:12px 0 6px}
+        .bar{height:3px;background:#21262d;border-radius:2px;overflow:hidden;margin-bottom:6px}
+        .bar-fill{height:100%;width:0%;background:#58a6ff;border-radius:2px;transition:width .25s}
+        .info-line{font-size:11px;color:#484f58;margin-bottom:4px;min-height:16px}
+        .rate-box{font-size:11px;color:#d29922;background:#1c2128;border-radius:6px;padding:8px 12px;margin-top:8px;display:none}
+        .rate-box strong{color:#f0f6fc}
+        .eml-item{
+            display:flex;align-items:flex-start;gap:8px;
+            padding:8px 10px;background:#1c2128;border-radius:6px;margin-bottom:6px;
+            font-size:13px;font-family:monospace;word-break:break-all;line-height:1.4
+        }
+        .eml-item .addr{color:#7ee787}
+        .eml-item .src{font-size:10px;color:#8b949e;font-family:sans-serif;display:block;margin-top:1px}
+        .badge{
+            display:inline-block;font-size:9px;font-weight:600;padding:1px 6px;
+            border-radius:4px;margin-right:4px;flex-shrink:0
+        }
+        .badge-commit{background:#1f6feb22;color:#58a6ff;border:1px solid #1f6feb44}
+        .badge-profile{background:#23863622;color:#7ee787;border:1px solid #23863644}
+        .badge-event{background:#d2992222;color:#d29922;border:1px solid #d2992244}
+        .badge-org{background:#bc8cff22;color:#bc8cff;border:1px solid #bc8cff44}
+        .badge-gist{background:#f0883e22;color:#f0883e;border:1px solid #f0883e44}
+        .badge-readme{background:#79c0ff22;color:#79c0ff;border:1px solid #79c0ff44}
+        .badge-issue{background:#db6d2822;color:#db6d28;border:1px solid #db6d2844}
+        .result-summary{
+            font-size:14px;font-weight:600;color:#7ee787;margin-bottom:12px;
+            padding:10px 14px;background:#1c2128;border-radius:8px;
+            border-left:3px solid #238636
+        }
+        .result-summary.none{border-color:#484f58;color:#8b949e}
+        .empty-msg{color:#484f58;font-style:italic;font-size:13px;text-align:center;padding:20px 0}
+        .catch-all{max-height:240px;overflow-y:auto;font-size:11px;color:#484f58;
+            background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:10px;margin-top:8px;
+            font-family:monospace;white-space:pre-wrap;word-break:break-all;display:none}
+        .flex{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+        .chip{
+            font-size:11px;padding:3px 10px;border-radius:12px;
+            background:#21262d;color:#8b949e;border:1px solid #30363d
+        }
+        .chip span{color:#c9d1d9;font-weight:600}
+        hr{border:0;border-top:1px solid #21262d;margin:14px 0}
+        @media(max-width:480px){
+            body{padding:8px}
+            .wrap{padding:10px 0}
+            .card{padding:14px}
+            .inp-row{flex-direction:column}
+            .inp-row button{width:100%;padding:12px}
+            .token-row{flex-direction:column;align-items:stretch}
+            .token-row label{text-align:left}
+            .eml-item{flex-direction:column;gap:4px}
+            .badge{margin-bottom:2px}
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>GitHub Email Extractor</h1>
+    <p class="sub">Enter a GitHub username to extract publicly exposed email addresses from commits, events, profile, gists, issues, and more.</p>
+
+    <div class="card">
+        <div class="inp-row">
+            <input type="text" id="userInp" placeholder="GitHub username (e.g. torvalds)" autocomplete="off" spellcheck="false">
+            <button id="goBtn">Extract</button>
+        </div>
+        <div class="token-row">
+            <label>Token (optional):</label>
+            <input type="text" id="tokenInp" placeholder="ghp_xxx or github_pat_xxx" autocomplete="off">
+        </div>
+    </div>
+
+    <div class="status-line" id="status">Ready.</div>
+    <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+    <div class="info-line" id="infoLine"></div>
+    <div class="rate-box" id="rateBox"></div>
+
+    <div id="results"></div>
+</div>
+
+<script>
+(function(){
+    const $ = id => document.getElementById(id);
+    const userInp = $('userInp'), goBtn = $('goBtn'), tokenInp = $('tokenInp');
+    const status = $('status'), barFill = $('barFill'), infoLine = $('infoLine'), rateBox = $('rateBox'), results = $('results');
+
+    const API = 'https://api.github.com';
+    const MAX_PAGES = 3;
+    const MAX_REPOS = 15;
+    const MAX_COMMITS_PER_REPO = 30;
+    const MAX_EVENTS = 90;
+
+    let abortFlag = false;
+
+    function setStatus(msg, err){
+        status.textContent = msg;
+        status.style.color = err ? '#f85149' : '#8b949e';
+    }
+    function setPct(n){
+        barFill.style.width = Math.min(100, Math.max(0, n)) + '%';
+    }
+    function info(msg){
+        infoLine.textContent = msg;
+    }
+    function showRate(headers){
+        const rem = headers['x-ratelimit-remaining'];
+        const reset = headers['x-ratelimit-reset'];
+        if(rem !== undefined && reset !== undefined){
+            rateBox.style.display = 'block';
+            const d = new Date(reset * 1000);
+            rateBox.innerHTML = 'Rate limit: <strong>' + rem + '</strong> remaining &middot; resets ' + d.toLocaleTimeString();
+            rateBox.style.color = rem < 5 ? '#f85149' : '#d29922';
+        }
+    }
+
+    function apiFetch(path, token){
+        return new Promise((resolve, reject) => {
+            if(abortFlag) return reject(new Error('aborted'));
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', API + path, true);
+            xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
+            if(token) xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+            xhr.onload = function(){
+                showRate({
+                    'x-ratelimit-remaining': xhr.getResponseHeader('X-RateLimit-Remaining'),
+                    'x-ratelimit-reset': xhr.getResponseHeader('X-RateLimit-Reset')
+                });
+                if(xhr.status === 200 || xhr.status === 301 || xhr.status === 302){
+                    try{ resolve({data: JSON.parse(xhr.responseText), headers: xhr.getAllResponseHeaders()}); }
+                    catch(e){ reject(new Error('JSON parse error')); }
+                } else if(xhr.status === 403){
+                    reject(new Error('Rate limited. Wait or use a token.'));
+                } else if(xhr.status === 404){
+                    reject(new Error('Not found'));
+                } else {
+                    reject(new Error('HTTP ' + xhr.status));
+                }
+            };
+            xhr.onerror = () => reject(new Error('Network error'));
+            xhr.send();
+        });
+    }
+
+    function extractEmails(str){
+        if(!str || typeof str !== 'string') return [];
+        const r = /[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*/g;
+        const m = str.match(r);
+        if(!m) return [];
+        return [...new Set(m.map(e=>e.toLowerCase()))];
+    }
+
+    function isNoReply(e){
+        return /noreply/i.test(e) || /users\.noreply\.github\.com/i.test(e);
+    }
+
+    function addEmail(map, email, label, badge){
+        if(!email || isNoReply(email)) return;
+        const k = email.toLowerCase();
+        if(!map.has(k)){
+            map.set(k, {email: email, sources: [], badge: badge || 'badge-commit'});
+        }
+        const entry = map.get(k);
+        if(label && !entry.sources.includes(label)){
+            if(entry.sources.length < 5) entry.sources.push(label);
+        }
+    }
+
+    function renderResult(map, userData, stats){
+        results.innerHTML = '';
+        const emails = [...map.values()];
+        if(emails.length > 0){
+            const sum = document.createElement('div');
+            sum.className = 'result-summary';
+            sum.textContent = emails.length + ' email' + (emails.length>1?'s':'') + ' found for @' + userInp.value.trim();
+            results.appendChild(sum);
+            emails.forEach(e => {
+                const d = document.createElement('div');
+                d.className = 'eml-item';
+                const badges = e.sources.map(s => {
+                    const b = document.createElement('span');
+                    b.className = 'badge ' + (e.badge || 'badge-commit');
+                    b.textContent = s.substring(0,28) + (s.length>28?'..':'');
+                    b.title = s;
+                    return b;
+                });
+                const addr = document.createElement('span');
+                addr.className = 'addr';
+                addr.textContent = e.email;
+                const src = document.createElement('span');
+                src.className = 'src';
+                src.textContent = e.sources.join('; ');
+                d.appendChild(addr);
+                if(e.sources.length > 0){
+                    const flex = document.createElement('div');
+                    flex.className = 'flex';
+                    badges.forEach(b => flex.appendChild(b));
+                    d.appendChild(flex);
+                }
+                results.appendChild(d);
+            });
+        } else {
+            const sum = document.createElement('div');
+            sum.className = 'result-summary none';
+            sum.textContent = 'No emails found for @' + userInp.value.trim();
+            results.appendChild(sum);
+            const p = document.createElement('p');
+            p.className = 'empty-msg';
+            p.textContent = 'The user may have private emails enabled, uses noreply@github.com, or has no public activity.';
+            results.appendChild(p);
+        }
+
+        if(userData){
+            const c = document.createElement('div');
+            c.className = 'card';
+            c.innerHTML = '<div class="card-title">Profile</div>' +
+                '<div style="font-size:13px;color:#8b949e;line-height:1.7">' +
+                '<div><span style="color:#c9d1d9;font-weight:600">' + (userData.name||'--') + '</span> &middot; ' +
+                (userData.location||'no location') + '</div>' +
+                '<div>Public repos: ' + (userData.public_repos||0) + ' &middot; Gists: ' + (userData.public_gists||0) +
+                ' &middot; Followers: ' + (userData.followers||0) + '</div>' +
+                '<div>Joined: ' + (userData.created_at ? userData.created_at.split('T')[0] : '--') + '</div>' +
+                '</div>';
+            if(stats){
+                c.innerHTML += '<hr><div style="font-size:11px;color:#484f58;line-height:1.6">' +
+                    'Commits scanned: ' + (stats.commitCount||0) + ' &middot; Repos: ' + (stats.repoCount||0) +
+                    ' &middot; Events: ' + (stats.eventCount||0) + ' &middot; Gists: ' + (stats.gistCount||0) +
+                    ' &middot; Issues: ' + (stats.issueCount||0) + '</div>';
+            }
+            results.appendChild(c);
+        }
+    }
+
+    async function fetchAllPages(base, token, maxPages){
+        const all = [];
+        for(let p=1; p<=maxPages; p++){
+            try{
+                const {data} = await apiFetch(base + '&page=' + p, token);
+                if(!data || (Array.isArray(data) && data.length===0)) break;
+                if(Array.isArray(data)) all.push(...data);
+                else { all.push(data); break; }
+                if(p >= maxPages) break;
+            } catch(e){ break; }
+        }
+        return all;
+    }
+
+    async function run(){
+        const username = userInp.value.trim();
+        if(!username){ setStatus('Enter a GitHub username.', true); return; }
+        const token = tokenInp.value.trim() || null;
+        abortFlag = false;
+        results.innerHTML = '';
+        rateBox.style.display = 'none';
+        setPct(0);
+        goBtn.disabled = true;
+
+        const emailMap = new Map();
+        const stats = {commitCount:0, repoCount:0, eventCount:0, gistCount:0, issueCount:0};
+        let userData = null;
+
+        function add(e, label, badge){ addEmail(emailMap, e, label, badge); }
+
+        try {
+            // STEP 1 - Profile
+            setStatus('Fetching profile...');
+            setPct(5);
+            info('Step 1/9: Profile');
+            try {
+                const {data} = await apiFetch('/users/' + encodeURIComponent(username), token);
+                userData = data;
+                if(data.email) add(data.email, 'public email field', 'badge-profile');
+                if(data.bio) extractEmails(data.bio).forEach(e => add(e, 'bio', 'badge-profile'));
+                if(data.blog){
+                    const be = extractEmails(data.blog);
+                    be.forEach(e => add(e, 'blog URL', 'badge-profile'));
+                    // Fetch blog URL for more emails
+                    if(be.length === 0 && data.blog.startsWith('http')){
+                        try{
+                            const x2 = new XMLHttpRequest();
+                            x2.open('GET', data.blog, true);
+                            x2.timeout = 5000;
+                            await new Promise((res,rej) => {
+                                x2.onload = () => {
+                                    if(x2.status === 200){
+                                        extractEmails(x2.responseText).forEach(e => add(e, 'blog page', 'badge-profile'));
+                                    }
+                                    res();
+                                };
+                                x2.onerror = x2.ontimeout = () => res();
+                                x2.send();
+                            });
+                        } catch(_){}
+                    }
+                }
+                if(data.company) extractEmails(data.company).forEach(e => add(e, 'company field', 'badge-profile'));
+                if(data.twitter_username){
+                    add(data.twitter_username + '@twitter.com', 'twitter handle (inferred)', 'badge-profile');
+                }
+            } catch(e){
+                setStatus('User not found or API error: ' + e.message, true);
+                goBtn.disabled = false;
+                return;
+            }
+
+            // STEP 2 - Public Events (multiple pages)
+            setStatus('Scanning public events...');
+            setPct(15);
+            info('Step 2/9: Events');
+            let events = [];
+            try {
+                events = await fetchAllPages('/users/'+encodeURIComponent(username)+'/events/public?per_page=30', token, MAX_PAGES);
+                stats.eventCount = events.length;
+                for(const ev of events){
+                    const pl = ev.payload || {};
+                    const raw = JSON.stringify(pl);
+                    const found = extractEmails(raw);
+                    const repoN = ev.repo ? ev.repo.name : 'unknown';
+                    found.forEach(e => add(e, 'event:' + (ev.type||'') + ' @ ' + repoN, 'badge-event'));
+                    // Check commits in push events
+                    if(ev.type === 'PushEvent' && pl.commits){
+                        for(const c of pl.commits){
+                            if(c.author && c.author.email) add(c.author.email, 'push event commit: ' + repoN, 'badge-event');
+                            if(c.committer && c.committer.email) add(c.committer.email, 'push event committer: ' + repoN, 'badge-event');
+                        }
+                    }
+                }
+            } catch(_){}
+
+            // STEP 3 - Repositories + commits
+            setStatus('Scanning repositories...');
+            setPct(30);
+            info('Step 3/9: Repositories & commits');
+            let repos = [];
+            try {
+                repos = await fetchAllPages('/users/'+encodeURIComponent(username)+'/repos?per_page=30&sort=pushed&direction=desc', token, 2);
+                stats.repoCount = repos.length;
+            } catch(_){}
+
+            const reposToScan = repos.slice(0, MAX_REPOS);
+            for(let ri=0; ri<reposToScan.length; ri++){
+                if(abortFlag) break;
+                const repo = reposToScan[ri];
+                const rName = repo.full_name || repo.name;
+                const pct = 35 + (ri / reposToScan.length) * 40;
+                setPct(Math.round(pct));
+                info('Step 4/9: Scanning ' + rName + ' (' + (ri+1) + '/' + reposToScan.length + ')');
+
+                // Repo description / topics / language
+                if(repo.description) extractEmails(repo.description).forEach(e => add(e, 'repo desc: ' + rName, 'badge-commit'));
+                if(repo.topics) repo.topics.forEach(t => extractEmails(t).forEach(e => add(e, 'repo topic: ' + rName, 'badge-commit')));
+                if(repo.language) extractEmails(repo.language).forEach(e => add(e, 'repo language: ' + rName, 'badge-commit'));
+                if(repo.homepage) extractEmails(repo.homepage).forEach(e => add(e, 'repo homepage: ' + rName, 'badge-commit'));
+
+                // Commits
+                let commits = [];
+                try {
+                    const {data: cData} = await apiFetch(
+                        '/repos/' + rName + '/commits?per_page=' + MAX_COMMITS_PER_REPO + '&author=' + encodeURIComponent(username),
+                        token
+                    );
+                    commits = Array.isArray(cData) ? cData : [];
+                } catch(_){
+                    try {
+                        const {data: cData} = await apiFetch(
+                            '/repos/' + rName + '/commits?per_page=' + Math.min(MAX_COMMITS_PER_REPO, 10),
+                            token
+                        );
+                        commits = Array.isArray(cData) ? cData : [];
+                    } catch(_){}
+                }
+
+                for(const cm of commits){
+                    if(abortFlag) break;
+                    const cd = cm.commit || {};
+                    const au = cd.author || {};
+                    const co = cd.committer || {};
+                    const sha = cm.sha ? cm.sha.substring(0,7) : '?';
+
+                    if(au.email) add(au.email, 'author: ' + rName + ' @' + sha, 'badge-commit');
+                    if(co.email && co.email !== au.email) add(co.email, 'committer: ' + rName + ' @' + sha, 'badge-commit');
+
+                    // Parents
+                    if(cm.parents){
+                        for(const p of cm.parents){
+                            if(p.sha){
+                                try {
+                                    const {data: pData} = await apiFetch('/repos/' + rName + '/commits/' + p.sha, token);
+                                    const pCommit = pData && pData.commit ? pData.commit : {};
+                                    const pAu = pCommit.author || {};
+                                    const pCo = pCommit.committer || {};
+                                    if(pAu.email && !emailMap.has(pAu.email.toLowerCase())) add(pAu.email, 'parent commit: ' + rName + ' @' + p.sha.substring(0,7), 'badge-commit');
+                                    if(pCo.email && !emailMap.has(pCo.email.toLowerCase()) && pCo.email !== pAu.email) add(pCo.email, 'parent committer: ' + rName + ' @' + p.sha.substring(0,7), 'badge-commit');
+                                } catch(_){}
+                            }
+                        }
+                    }
+
+                    const msg = cd.message || '';
+                    extractEmails(msg).forEach(e => add(e, 'commit msg: ' + rName + ' @' + sha, 'badge-commit'));
+
+                    stats.commitCount++;
+                }
+
+                // Check repo README
+                try {
+                    const {data: readme} = await apiFetch('/repos/' + rName + '/readme', token);
+                    if(readme && readme.content){
+                        const decoded = atob(readme.content.replace(/\n/g, ''));
+                        extractEmails(decoded).forEach(e => add(e, 'readme: ' + rName, 'badge-readme'));
+                    }
+                } catch(_){}
+            }
+
+            // STEP 4 - Gists
+            setStatus('Scanning gists...');
+            setPct(75);
+            info('Step 5/9: Gists');
+            let gists = [];
+            try {
+                gists = await fetchAllPages('/users/'+encodeURIComponent(username)+'/gists?per_page=30', token, 2);
+                stats.gistCount = gists.length;
+                for(const g of gists){
+                    if(abortFlag) break;
+                    if(g.description) extractEmails(g.description).forEach(e => add(e, 'gist: ' + (g.id||''), 'badge-gist'));
+                    if(g.files){
+                        const fNames = Object.keys(g.files);
+                        for(const fn of fNames){
+                            const f = g.files[fn];
+                            if(f.content){
+                                extractEmails(f.content).forEach(e => add(e, 'gist file: ' + fn, 'badge-gist'));
+                            }
+                        }
+                    }
+                    if(g.history){
+                        for(const h of g.history){
+                            const v = h.version || '';
+                            if(v){
+                                try {
+                                    const {data: gData} = await apiFetch('/gists/' + g.id + '/' + v, token);
+                                    if(gData && gData.files){
+                                        for(const fn of Object.keys(gData.files)){
+                                            const fc = gData.files[fn];
+                                            if(fc && fc.content){
+                                                extractEmails(fc.content).forEach(e => add(e, 'gist history: ' + fn, 'badge-gist'));
+                                            }
+                                        }
+                                    }
+                                } catch(_){}
+                            }
+                        }
+                    }
+                }
+            } catch(_){}
+
+            // STEP 5 - Issue & PR comments authored
+            setStatus('Scanning issues and PRs...');
+            setPct(85);
+            info('Step 6/9: Issues & pull requests');
+            try {
+                const {data: issues} = await apiFetch(
+                    '/search/issues?q=author:' + encodeURIComponent(username) + '+type:issue&per_page=20',
+                    token
+                );
+                const items = issues && issues.items ? issues.items : [];
+                stats.issueCount = items.length;
+                for(const iss of items){
+                    if(abortFlag) break;
+                    if(iss.title) extractEmails(iss.title).forEach(e => add(e, 'issue: ' + (iss.repository_url||'').split('/').pop() + ' #' + iss.number, 'badge-issue'));
+                    if(iss.body) extractEmails(iss.body).forEach(e => add(e, 'issue body: ' + (iss.repository_url||'').split('/').pop() + ' #' + iss.number, 'badge-issue'));
+                }
+            } catch(_){}
+
+            // PRs authored
+            try {
+                const {data: prs} = await apiFetch(
+                    '/search/issues?q=author:' + encodeURIComponent(username) + '+type:pr&per_page=20',
+                    token
+                );
+                const prItems = prs && prs.items ? prs.items : [];
+                for(const pr of prItems){
+                    if(abortFlag) break;
+                    if(pr.title) extractEmails(pr.title).forEach(e => add(e, 'PR: ' + (pr.repository_url||'').split('/').pop() + ' #' + pr.number, 'badge-issue'));
+                    if(pr.body) extractEmails(pr.body).forEach(e => add(e, 'PR body: ' + (pr.repository_url||'').split('/').pop() + ' #' + pr.number, 'badge-issue'));
+                }
+            } catch(_){}
+
+            // STEP 6 - Organizations
+            setStatus('Checking organizations...');
+            setPct(92);
+            info('Step 7/9: Organizations');
+            try {
+                const {data: orgs} = await apiFetch('/users/'+encodeURIComponent(username)+'/orgs', token);
+                if(orgs && orgs.length > 0){
+                    for(const org of orgs.slice(0, 10)){
+                        try {
+                            const {data: od} = await apiFetch('/orgs/' + encodeURIComponent(org.login), token);
+                            if(od.email) add(od.email, 'org: ' + org.login, 'badge-org');
+                            if(od.description) extractEmails(od.description).forEach(e => add(e, 'org desc: ' + org.login, 'badge-org'));
+                            if(od.blog) extractEmails(od.blog).forEach(e => add(e, 'org blog: ' + org.login, 'badge-org'));
+                        } catch(_){}
+                    }
+                }
+            } catch(_){}
+
+            // STEP 7 - Profile README
+            setStatus('Checking profile README...');
+            info('Step 8/9: Profile README');
+            try {
+                const {data: readme} = await apiFetch('/repos/' + encodeURIComponent(username) + '/' + encodeURIComponent(username) + '/readme', token);
+                if(readme && readme.content){
+                    const dec = atob(readme.content.replace(/\n/g, ''));
+                    extractEmails(dec).forEach(e => add(e, 'profile README', 'badge-readme'));
+                }
+            } catch(_){}
+
+            // STEP 8 - Starred repos (for possible additional context)
+            setStatus('Checking starred repos...');
+            info('Step 9/9: Starred repos');
+            try {
+                const {data: starred} = await apiFetch('/users/'+encodeURIComponent(username)+'/starred?per_page=30', token);
+                if(starred && starred.length > 0){
+                    for(const s of starred.slice(0, 5)){
+                        if(s.description) extractEmails(s.description).forEach(e => add(e, 'starred: ' + (s.full_name||''), 'badge-event'));
+                    }
+                }
+            } catch(_){}
+
+            // Final
+            setPct(100);
+            info('Scan complete');
+            renderResult(emailMap, userData, stats);
+            setStatus('Found ' + emailMap.size + ' email(s) for @' + username);
+        } catch(err){
+            if(!abortFlag){
+                setStatus('Error: ' + err.message, true);
+                renderResult(emailMap, userData, stats);
+            }
+        } finally {
+            goBtn.disabled = false;
+            setPct(100);
+        }
+    }
+
+    goBtn.addEventListener('click', run);
+    userInp.addEventListener('keydown', e => { if(e.key === 'Enter') run(); });
+    userInp.focus();
+})();
+</script>
+</body>
+</html>
