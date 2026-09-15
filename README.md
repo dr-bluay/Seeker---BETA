@@ -1,4 +1,4 @@
-# Seeker---BETA
+# Seeker - BETA
 
 Seeker
 
